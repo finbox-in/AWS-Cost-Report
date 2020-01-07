@@ -112,7 +112,6 @@ if config["expensive_services"]["enabled"] == True:
                 service_to_cost[service_name] += cost
                 total_cost += cost
 
-    import pdb; pdb.set_trace()
     sorted_services = sorted(service_to_cost.items(), key=lambda x: x[1], reverse=True)
 
     target_amount = (cost_percentage / 100.0) * total_cost
