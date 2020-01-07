@@ -12,11 +12,11 @@ Script to generate a Cost Report in XLSX format, with different sheets indicatin
         }
     ```
     
-    | Key | Type | Description |
-    | - | - | - | - |
-    | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
-    | `past_days` | Integer | Looks for cost data for specified number of past days |
-    | `cost_percentage` | Integer | Lists only the services for which sum of costs is `cost_percentage`% of total cost over the past `past_days` |
+| Key | Type | Description |
+| - | - | - | - |
+| `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
+| `past_days` | Integer | Looks for cost data for specified number of past days |
+| `cost_percentage` | Integer | Lists only the services for which sum of costs is `cost_percentage`% of total cost over the past `past_days` |
 
 2. **Untagged Resources**: It lists all the resources for which specified tags are missing. Proper tagging always helps in analyzing the costs well over the cost explorer. It currently looks for the tags in Lambda Functions, DynamoDB Tables, EC2 Instances, Kinesis Streams, Firehose Delivery Streams and S3 Buckets.
     Its config.json key looks like this:
