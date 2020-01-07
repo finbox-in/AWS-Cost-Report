@@ -1,7 +1,28 @@
-# AWS-Cost-Report
+# AWS Cost Report
 Script to generate a Cost Report in XLSX format, with different sheets indicating different actionable reports
 
-## Sheets with config.json keys
+## Setup and Usage
+1. Make sure AWS credentials are setup on the machine. By default its location is at `~/.aws/credentials`. You can set it up manually or using [AWS CLI](http://aws.amazon.com/cli/).
+2. Setup the required settings in `config.json` as mentioned in the last section. Also make sure you have cost explorer enabled in your AWS account (in case you are using the features that require it).
+3. Make sure you have python3 and installed the required packages mentioned in `requirements.txt` file. Best practice is to create a virtual environment and then install the required packages. You can use the following commands (after changing to the directory) for same.
+    ```sh
+    python3 -m venv .venv
+    source .venv/bin/activate
+    pip install -r requirements.txt
+    ```
+4. Now execute the script, with the virtual environment activated:
+    ```sh
+    python cost_report.py
+    ```
+5. You will get the report in the same directory as a file `report.xlsx`.
+
+## Additional Scripts
+This Repository also consists two additional scripts. Both of these can be executed in the same virtual environment by executing `python script_file_name.py` command.
+1. `cleanup_snapshots.py`: This script deletes all the snapshots who have none of the volume, instance or the AMI assigned.
+2. `tag_resources.py`: This script tags the resources as specified in the `to_tag.csv` file, which must be present in the same path as the script. Expected format can be understood on the comments at start of the script.
+
+## Reports with config.json keys
+Each of the report is present as a separate sheet in the final workbook. Reports with their `config.json` keys are as follows:
 1. **Expensive Services**: It lists the expensive service names on your AWS Account. This requires Cost Explorer to be enabled on your account.
     Its config.json key looks like this:
     ```json
@@ -11,7 +32,7 @@ Script to generate a Cost Report in XLSX format, with different sheets indicatin
             "cost_percentage": 80
         }
     ```
-    
+
     | Key | Type | Description |
     | --- | ---  | --- |
     | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
