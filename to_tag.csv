@@ -1,0 +1,2 @@
+Resource,Name,Tag:Name,Tag:STAGE,Tag:Pipeline
+Lambda Function,SomeLambdaName,TagNameValue,dev,SomePipelineName
