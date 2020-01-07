@@ -1,0 +1,6 @@
+*.xlsx
+env/
+venv/
+.env/
+.venv/
+*.pyc
