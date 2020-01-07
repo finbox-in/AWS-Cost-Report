@@ -13,7 +13,7 @@ Script to generate a Cost Report in XLSX format, with different sheets indicatin
     ```
     
     | Key | Type | Description |
-    | --- | --- | --- | --- |
+    | --- | ---  | --- |
     | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
     | `past_days` | Integer | Looks for cost data for specified number of past days |
     | `cost_percentage` | Integer | Lists only the services for which sum of costs is `cost_percentage`% of total cost over the past `past_days` |
@@ -27,7 +27,7 @@ Script to generate a Cost Report in XLSX format, with different sheets indicatin
     }
     ```
     | Key | Type | Description |
-    | --- | --- | --- | --- |
+    | --- | --- | --- |
     | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
     | `tags` | List of Strings | Specifies the tags to look for in resources |
 3. **Unreferenced Snapshots**: It lists all the unreferenced snapshots, i.e. the ones who have at least one of the volume, AMI or instance not referenced.
@@ -38,7 +38,7 @@ Script to generate a Cost Report in XLSX format, with different sheets indicatin
     }
     ```
     | Key | Type | Description |
-    | --- | --- | --- | --- |
+    | --- | --- | --- |
     | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
 4. **Unattached Volumes**: It lists all the volumes unattached to any EC2 Instance.
     Its config.json key looks like this:
@@ -48,7 +48,7 @@ Script to generate a Cost Report in XLSX format, with different sheets indicatin
     }
     ```
     | Key | Type | Description |
-    | --- | --- | --- | --- |
+    | --- | --- | --- |
     | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
 5. **Expensive Lambdas**: It lists the expensive Lambda Functions on your AWS Account. This requires Cost Explorer to be enabled on your account.
     Its config.json key looks like this:
@@ -61,7 +61,7 @@ Script to generate a Cost Report in XLSX format, with different sheets indicatin
     }
     ```
     | Key | Type | Description |
-    | --- | --- | --- | --- |
+    | --- | --- | --- |
     | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
     | `name_tag_key` | String | This specifies which tag in the lambda function specifies the name of the function |
     | `past_days` | Integer | Looks for cost data for specified number of past days |
@@ -77,7 +77,7 @@ Script to generate a Cost Report in XLSX format, with different sheets indicatin
     }
     ```
     | Key | Type | Description |
-    | --- | --- | --- | --- |
+    | --- | --- | --- |
     | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
     | `name_tag_key` | String | This specifies which tag in the kinesis stream specifies the name of the stream |
     | `past_days` | Integer | Looks for cost data for specified number of past days |
@@ -92,7 +92,7 @@ Script to generate a Cost Report in XLSX format, with different sheets indicatin
     }
     ```
     | Key | Type | Description |
-    | --- | --- | --- | --- |
+    | --- | --- | --- |
     | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
     | `past_days` | Integer | Looks for cost data for specified number of past days |
     | `top_n` | Integer | Specifies the value of N |
@@ -104,5 +104,5 @@ Script to generate a Cost Report in XLSX format, with different sheets indicatin
     }
     ```
     | Key | Type | Description |
-    | --- | --- | --- | --- |
+    | --- | --- | --- |
     | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
