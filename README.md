@@ -11,6 +11,7 @@ Script to generate a Cost Report in XLSX format, with different sheets indicatin
             "cost_percentage": 80
         }
     ```
+    
     | Key | Type | Description |
     | - | - | - | - |
     | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
