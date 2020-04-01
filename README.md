@@ -87,7 +87,7 @@ Each of the report is present as a separate sheet in the final workbook. Reports
     | `name_tag_key` | String | This specifies which tag in the lambda function specifies the name of the function |
     | `past_days` | Integer | Looks for cost data for specified number of past days |
     | `cost_percentage` | Integer | Lists only the lambdas for which sum of costs is `cost_percentage`% of total lambda cost over the past `past_days` |
-6. **Expensive Kinesis Streams**: It lists the expensive Kinesis Streams on your AWS Account. This requires Cost Explorer to be enabled on your account.
+6. **Expensive Kinesis Streams**: It lists the expensive Kinesis Streams along with number of shards on your AWS Account. This requires Cost Explorer to be enabled on your account.
     Its config.json key looks like this:
     ```json
     "expensive_kinesis_streams": {
@@ -103,7 +103,18 @@ Each of the report is present as a separate sheet in the final workbook. Reports
     | `name_tag_key` | String | This specifies which tag in the kinesis stream specifies the name of the stream |
     | `past_days` | Integer | Looks for cost data for specified number of past days |
     | `cost_percentage` | Integer | Lists only the streams for which sum of costs is `cost_percentage`% of total Kinesis cost over the past `past_days` |
-7. **Top N CloudWatch Log Groups by incoming bytes**: It lists the top N CloudWatch Log Groups with highest incoming bytes on your AWS Account over the specified past days. This requires Cost Explorer to be enabled on your account.
+7. **On Demand DynamoDB Tables**: It lists all the DynamoDB Tables with On-Demand capacity mode.
+    Its config.json key looks like this:
+    ```json
+    "on_demand_ddb": {
+        "enabled": true
+    }
+    ```
+    | Key | Type | Description |
+    | --- | --- | --- |
+    | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
+
+8. **Top N CloudWatch Log Groups by incoming bytes**: It lists the top N CloudWatch Log Groups with highest incoming bytes on your AWS Account over the specified past days. This requires Cost Explorer to be enabled on your account.
     Its config.json key looks like this:
     ```json
     "storage_cloudwatch_log_groups": {
@@ -117,7 +128,19 @@ Each of the report is present as a separate sheet in the final workbook. Reports
     | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
     | `past_days` | Integer | Looks for cost data for specified number of past days |
     | `top_n` | Integer | Specifies the value of N |
-8. **Unused Elastic IPs**: Lists the unused elastic IPs, the ones unassociated as well as the ones for which the instance is stopped.
+9. **Top N API Gateway REST API stages CloudWatch Log Groups**: It lists the top N CloudWatch Log Groups of API Gateway (Execution Logs and Access Logs) with REST API and Stage Name based on incoming bytes on your AWS Account over the specified past days in previous sheet. This requires Cost Explorer to be enabled on your account. This works only if `storage_cloudwatch_log_groups` was enabled.
+    Its config.json key looks like this:
+    ```json
+    "api_gateway_cloudwatch": {
+        "enabled": true,
+        "top_n": 10
+    }
+    ```
+    | Key | Type | Description |
+    | --- | --- | --- |
+    | `enabled` | Boolean | This specifies whether to include the sheet in the report workbook |
+    | `top_n` | Integer | Specifies the value of N |
+10. **Unused Elastic IPs**: Lists the unused elastic IPs, the ones unassociated as well as the ones for which the instance is stopped.
     Its config.json key looks like this:
     ```json
     "unused_elastic_ips": {
