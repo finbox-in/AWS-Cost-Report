@@ -409,7 +409,6 @@ if config["expensive_kinesis_streams"]["enabled"] == True:
     kinesis_worksheet.write(row, 1, "Number of Shards", blue_heading)
     kinesis_worksheet.write(row, 2, "Cost (in USD) for past {} days".format(past_days), blue_heading)
     # set length of columns
-    kinesis_worksheet.set_column(0, 1, 20)
     kinesis_worksheet.set_column(0, 2, 60)
     row += 1
 
@@ -464,6 +463,29 @@ if config["expensive_kinesis_streams"]["enabled"] == True:
         kinesis_worksheet.write(row, 1, "", gray_heading)
         kinesis_worksheet.write(row, 2, total_cost, gray_heading)
         row += 1
+
+if config["on_demand_ddb"]["enabled"] == True:
+    ##############################################
+    ##    On Demand DynamoDB Tables             ##
+    ##############################################
+    print("\nLooking for on demand dynamodb tables...")
+    print("---")
+
+    ddb_worksheet = workbook.add_worksheet("On-Demand DynamoDB Tables")
+    row = 0
+    # add headings
+    ddb_worksheet.write(row, 0, "DynamoDB Table Name", blue_heading)
+    row += 1
+    ddb_worksheet.set_column(0, 0, 40)
+
+    client = boto3.client("dynamodb")
+    for table in get_dynamodb_tables(client):
+        print("Checking for table", table)
+        billing_mode = client.describe_table(TableName=table)['Table'].get('BillingModeSummary', dict()).get('BillingMode', "")
+        if billing_mode == "PAY_PER_REQUEST":
+            # table is on-demand
+            ddb_worksheet.write(row, 0, table)
+            row += 1
 
 if config["storage_cloudwatch_log_groups"]["enabled"] == True:
     ########################################################
