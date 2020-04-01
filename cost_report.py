@@ -487,6 +487,9 @@ if config["on_demand_ddb"]["enabled"] == True:
             ddb_worksheet.write(row, 0, table)
             row += 1
 
+# reusable values
+log_group_gb = defaultdict(float)
+past_days = 14
 if config["storage_cloudwatch_log_groups"]["enabled"] == True:
     ########################################################
     ##    Top N CloudWatch Log Groups by incoming bytes   ##
@@ -551,15 +554,86 @@ if config["storage_cloudwatch_log_groups"]["enabled"] == True:
                 try:
                     incoming_gb = result['Values'][0] / (1024 * 1024 * 1024) # convert bytes to GB
                     results.append((result['Label'], incoming_gb))
+                    log_group_gb[result['Label']] = incoming_gb
                 except IndexError:
                     continue
 
     results.sort(key = lambda x: x[1], reverse=True)
+    results = results[:top_n]
     
-    for name, incoming_gb in results[:top_n]:
+    for name, incoming_gb in results:
         cloudwatch_worksheet.write(row, 0, name, generic_cell)
         cloudwatch_worksheet.write(row, 1, incoming_gb, generic_cell)
         row += 1
+
+if config['api_gateway_cloudwatch']["enabled"] == True:
+    #############################################################
+    ## Top N API Gateway REST API stages CloudWatch Log Groups ##
+    #############################################################
+
+
+    if not config["storage_cloudwatch_log_groups"]["enabled"]:
+        raise Exception("ERROR: Cannot add API Gateway sheet since storage_cloudwatch_log_groups was not enabled :(")
+
+    print("\nLooking for API Gateway REST API stages CloudWatch Log Groups...")
+    print("---")
+    top_n = config["api_gateway_cloudwatch"]["top_n"]
+
+    api_gateway_worksheet = workbook.add_worksheet("Top {} API GW Logs".format(top_n))
+    row = 0
+    # add headings
+    api_gateway_worksheet.write(row, 0, "REST API", blue_heading)
+    api_gateway_worksheet.write(row, 1, "Stage", blue_heading)
+    api_gateway_worksheet.write(row, 2, "Execution Log Group", blue_heading)
+    api_gateway_worksheet.write(row, 3, "Incoming GBs in last {} days".format(past_days), blue_heading)
+    api_gateway_worksheet.write(row, 4, "Access Log Group", blue_heading)
+    api_gateway_worksheet.write(row, 5, "Incoming GBs in last {} days".format(past_days), blue_heading)
+    # set length of columns
+    api_gateway_worksheet.set_column(0, 5, 30)
+    row += 1
+
+    client = boto3.client("apigateway")
+    
+    # get all apis first
+    print("Fetching all REST APIs....")
+    apis = []
+    response = client.get_rest_apis()
+    for item in response.get('items', []):
+        apis.append({
+            "api_id": item['id'],
+            "api_name": item['name']
+        })
+    position = response.get('position')
+    while position is not None:
+        response = client.get_rest_apis(position=position)
+        for item in response.get('items', []):
+            apis.append({
+                "api_id": item['id'],
+                "api_name": item['name']
+            })
+        position = response.get('position')
+    
+    # check stages for REST APIs
+    results = []
+    for api in apis:
+        print("Checking stages for", api['api_name'], "...")
+        stages = client.get_stages(restApiId=api['api_id']).get('item', [])
+        for stage in stages:
+            access_log_group = stage.get('accessLogSettings', dict()).get('destinationArn', '')
+            if access_log_group:
+                access_log_group = access_log_group[access_log_group.rindex(":")+1:]
+            access_usage = log_group_gb[access_log_group]
+            log_group = "API-Gateway-Execution-Logs_{}/{}".format(api['api_id'], stage['stageName'])
+            execution_usage = log_group_gb[log_group]
+            if access_usage + execution_usage > 0:
+                results.append([api['api_name'], stage['stageName'], log_group, log_group_gb[log_group], access_log_group, log_group_gb[access_log_group]])
+    results.sort(key = lambda x: x[3]+x[5], reverse=True)
+    results = results[:top_n]
+    for result_row in results:
+        for i in range(0, 6):
+            api_gateway_worksheet.write(row, i, result_row[i], generic_cell)
+        row += 1
+    
 
 if config["unused_elastic_ips"]["enabled"] == True:
     ########################################################
