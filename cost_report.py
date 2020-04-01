@@ -81,7 +81,7 @@ if config["expensive_services"]["enabled"] == True:
     row = 0
     # add headings
     services_worksheet.write(row, 0, "Service", blue_heading)
-    services_worksheet.write(row, 1, "Cost (in USD)", blue_heading)
+    services_worksheet.write(row, 1, "Cost (in USD) for past {} days".format(past_days), blue_heading)
     # set length of columns
     services_worksheet.set_column(0, 1, 60)
     row += 1
@@ -348,7 +348,7 @@ if config["expensive_lambda_functions"]["enabled"] == True:
     row = 0
     # add headings
     lambda_worksheet.write(row, 0, "Function Name", blue_heading)
-    lambda_worksheet.write(row, 1, "Cost (in USD)", blue_heading)
+    lambda_worksheet.write(row, 1, "Cost (in USD) for past {} days".format(past_days), blue_heading)
     # set length of columns
     lambda_worksheet.set_column(0, 1, 60)
     row += 1
@@ -406,9 +406,11 @@ if config["expensive_kinesis_streams"]["enabled"] == True:
     row = 0
     # add headings
     kinesis_worksheet.write(row, 0, "Kinesis Stream Name", blue_heading)
-    kinesis_worksheet.write(row, 1, "Cost (in USD)", blue_heading)
+    kinesis_worksheet.write(row, 1, "Number of Shards", blue_heading)
+    kinesis_worksheet.write(row, 2, "Cost (in USD) for past {} days".format(past_days), blue_heading)
     # set length of columns
-    kinesis_worksheet.set_column(0, 1, 60)
+    kinesis_worksheet.set_column(0, 1, 20)
+    kinesis_worksheet.set_column(0, 2, 60)
     row += 1
 
     client = boto3.client("ce")
@@ -435,15 +437,32 @@ if config["expensive_kinesis_streams"]["enabled"] == True:
     target_amount = (cost_percentage / 100.0) * total_cost
     current_amount = 0
     for name, cost in sorted_streams:
+
+        # also fetch number of shards now
+        print("Fetching number of shards for", name)
+        try:
+            kinesis_client = boto3.client("kinesis")
+            kinesis_response = kinesis_client.describe_stream(StreamName=name, Limit=100)
+            no_of_shards = len(kinesis_response.get('StreamDescription', dict()).get('Shards', []))
+            has_more_shards = kinesis_response.get('StreamDescription', dict()).get('HasMoreShards', False)
+            if has_more_shards:
+                no_of_shards = str(no_of_shards) + "+" # number of shards more than 100!
+        except Exception as e:
+            print(e)
+            continue
+
         kinesis_worksheet.write(row, 0, name, generic_cell)
-        kinesis_worksheet.write(row, 1, cost, generic_cell)
+        kinesis_worksheet.write(row, 1, no_of_shards, generic_cell)
+        kinesis_worksheet.write(row, 2, cost, generic_cell)
+
         row += 1
         current_amount += cost
         if current_amount > target_amount:
             break
     if total_cost > 0:
         kinesis_worksheet.write(row, 0, "ALL STREAMS", gray_heading)
-        kinesis_worksheet.write(row, 1, total_cost, gray_heading)
+        kinesis_worksheet.write(row, 1, "", gray_heading)
+        kinesis_worksheet.write(row, 2, total_cost, gray_heading)
         row += 1
 
 if config["storage_cloudwatch_log_groups"]["enabled"] == True:

@@ -1,21 +1,21 @@
 {
     "expensive_services": {
-        "enabled": true,
+        "enabled": false,
         "past_days": 2,
         "cost_percentage": 80
     },
     "untagged_resources": {
-        "enabled": true,
+        "enabled": false,
         "tags": ["Name", "STAGE", "Pipeline"]
     },
     "unreferenced_snapshots": {
-        "enabled": true
+        "enabled": false
     },
     "unattached_volumes": {
-        "enabled": true
+        "enabled": false
     },
     "expensive_lambda_functions": {
-        "enabled": true,
+        "enabled": false,
         "name_tag_key": "Name",
         "cost_percentage": 80,
         "past_days": 7
@@ -27,11 +27,11 @@
         "past_days": 7
     },
     "storage_cloudwatch_log_groups": {
-        "enabled": true,
+        "enabled": false,
         "top_n": 10,
         "past_days": 14
     },
     "unused_elastic_ips": {
-        "enabled": true
+        "enabled": false
     }
 }
