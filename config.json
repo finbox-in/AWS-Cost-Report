@@ -1,21 +1,21 @@
 {
     "expensive_services": {
-        "enabled": false,
+        "enabled": true,
         "past_days": 2,
         "cost_percentage": 80
     },
     "untagged_resources": {
-        "enabled": false,
+        "enabled": true,
         "tags": ["Name", "STAGE", "Pipeline"]
     },
     "unreferenced_snapshots": {
-        "enabled": false
+        "enabled": true
     },
     "unattached_volumes": {
-        "enabled": false
+        "enabled": true
     },
     "expensive_lambda_functions": {
-        "enabled": false,
+        "enabled": true,
         "name_tag_key": "Name",
         "cost_percentage": 80,
         "past_days": 7
@@ -26,12 +26,19 @@
         "cost_percentage": 80,
         "past_days": 7
     },
+    "on_demand_ddb": {
+        "enabled": true
+    },
     "storage_cloudwatch_log_groups": {
-        "enabled": false,
+        "enabled": true,
         "top_n": 10,
         "past_days": 14
     },
+    "api_gateway_cloudwatch": {
+        "enabled": true,
+        "top_n": 10
+    },
     "unused_elastic_ips": {
-        "enabled": false
+        "enabled": true
     }
 }
