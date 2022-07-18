@@ -19,7 +19,7 @@ def get_dynamodb_tables(client):
     next_marker = fetched_tables.get('LastEvaluatedTableName')
     tables = fetched_tables['TableNames']
     while next_marker is not None:
-        fetched_tables = client.list_tables()
+        fetched_tables = client.list_tables(ExclusiveStartTableName=next_marker)
         next_marker = fetched_tables.get('LastEvaluatedTableName')
         tables.extend(fetched_tables['TableNames'])
     return iter(tables)
