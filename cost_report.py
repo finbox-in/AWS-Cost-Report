@@ -7,16 +7,51 @@ import xlsxwriter
 import json
 from datetime import datetime, timedelta
 from ebs_helpers import get_snapshots, get_available_volumes
-from fetch_helpers import get_lambda_functions, get_dynamodb_tables, get_ec2_reservations
+from fetch_helpers import get_lambda_functions, get_dynamodb_tables
+from fetch_helpers import get_ec2_reservations
 from fetch_helpers import get_kinesis_streams, get_firehose_delivery_streams
 from collections import defaultdict
 
-workbook = xlsxwriter.Workbook('report.xlsx')
-blue_heading = workbook.add_format({ 'font_color': '#ffffff', 'bg_color': '#0080ff', 'valign': 'vcenter', 'border': 1, 'font_size': 13 }) 
-gray_heading = workbook.add_format({ 'font_color': '#ffffff', 'bg_color': '#969696', 'valign': 'vcenter', 'border': 1, 'font_size': 13 })
-generic_cell = workbook.add_format({ 'valign': 'vcenter', 'border': 1, 'font_size': 13 })
-green_text_cell = workbook.add_format({ 'valign': 'vcenter', 'border': 1, 'font_size': 13, 'font_color': '#037d50' })
-red_text_cell = workbook.add_format({ 'valign': 'vcenter', 'border': 1, 'font_size': 13, 'font_color': '#cc0000' })
+# constants
+OUTPUT_FILE_NAME = 'report.xlsx'
+UNIQUE_ID_SIZE = 10
+MAIN_HEADING_BG_COLOR = '#0080ff'
+MAIN_HEADING_FONT_COLOR = '#ffffff'
+MAIN_HEADING_FONT_SIZE = 13
+SUB_HEADING_BG_COLOR = '#969696'
+SUB_HEADING_FONT_COLOR = '#ffffff'
+SUB_HEADING_FONT_SIZE = 13
+CELL_FONT_SIZE = 13
+GREEN_FONT_COLOR = '#037d50'
+RED_FONT_COLOR = '#cc0000'
+
+workbook = xlsxwriter.Workbook(OUTPUT_FILE_NAME)
+main_heading = workbook.add_format({
+    'font_color': MAIN_HEADING_FONT_COLOR,
+    'bg_color': MAIN_HEADING_BG_COLOR,
+    'valign': 'vcenter', 'border': 1,
+    'font_size': MAIN_HEADING_FONT_SIZE
+})
+sub_heading = workbook.add_format({
+    'font_color': SUB_HEADING_FONT_COLOR,
+    'bg_color': SUB_HEADING_BG_COLOR,
+    'valign': 'vcenter', 'border': 1,
+    'font_size': SUB_HEADING_FONT_SIZE
+})
+generic_cell = workbook.add_format({
+    'valign': 'vcenter', 'border': 1,
+    'font_size': CELL_FONT_SIZE
+})
+green_text_cell = workbook.add_format({
+    'valign': 'vcenter', 'border': 1,
+    'font_size': CELL_FONT_SIZE,
+    'font_color': GREEN_FONT_COLOR
+})
+red_text_cell = workbook.add_format({
+    'valign': 'vcenter', 'border': 1,
+    'font_size': CELL_FONT_SIZE,
+    'font_color': RED_FONT_COLOR
+})
 
 print("Loading config.json file....")
 config = dict()
@@ -24,11 +59,12 @@ with open("config.json") as json_file:
     config = json.load(json_file)
 print("configuration loaded!")
 
+
 def generate_unique_string():
-    UNIQUE_ID_SIZE = 10
     import random
     import string
     return "".join(random.choices(string.ascii_lowercase, k=UNIQUE_ID_SIZE))
+
 
 def add_untagged_in_worksheet(worksheet, row, resource_type, resource_name, tags_to_look, tags):
     to_add = False
@@ -43,7 +79,7 @@ def add_untagged_in_worksheet(worksheet, row, resource_type, resource_name, tags
         col = 0
         for value in values:
             if isinstance(value, bool):
-                if value == True:
+                if value:
                     worksheet.write(row, col, "AVAILABLE", green_text_cell)
                 else:
                     worksheet.write(row, col, "UNAVAILABLE", red_text_cell)
@@ -53,6 +89,7 @@ def add_untagged_in_worksheet(worksheet, row, resource_type, resource_name, tags
         row += 1
     return row
 
+
 def get_tags_dict_from_list(tags_list):
     tags = dict()
     for tag_dict in tag_list:
@@ -60,18 +97,11 @@ def get_tags_dict_from_list(tags_list):
     return tags
 
 
-##############################################
-##############################################
-####     Main Code starts here            ####
-##############################################
-##############################################
-
-if config["expensive_services"]["enabled"] == True:
+# conditional checks for all parameters
+if config["expensive_services"]["enabled"]:
     cost_percentage = config["expensive_services"]["cost_percentage"]
     past_days = config["expensive_services"]["past_days"]
-    ##############################################
-    ##       Expensive Services                 ##
-    ##############################################
+    # expensive services
     print("\nLooking for expensive services")
     print("---")
     start_date = (datetime.today() - timedelta(days=past_days)).strftime("%Y-%m-%d")
@@ -80,13 +110,12 @@ if config["expensive_services"]["enabled"] == True:
     services_worksheet = workbook.add_worksheet("{}% Cost Services".format(cost_percentage))
     row = 0
     # add headings
-    services_worksheet.write(row, 0, "Service", blue_heading)
-    services_worksheet.write(row, 1, "Cost (in USD) for past {} days".format(past_days), blue_heading)
+    services_worksheet.write(row, 0, "Service", main_heading)
+    services_worksheet.write(row, 1, "Cost (in USD) for past {} days".format(past_days), main_heading)
     # set length of columns
     services_worksheet.set_column(0, 1, 60)
     row += 1
-
-
+    # create cost explorer client
     client = boto3.client('ce')
     token = None
     results = []
@@ -124,27 +153,25 @@ if config["expensive_services"]["enabled"] == True:
         if current_amount > target_amount:
             break
     if total_cost > 0:
-        services_worksheet.write(row, 0, "ALL SERVICES", gray_heading)
-        services_worksheet.write(row, 1, total_cost, gray_heading)
+        services_worksheet.write(row, 0, "ALL SERVICES", sub_heading)
+        services_worksheet.write(row, 1, total_cost, sub_heading)
         row += 1
 
 
-if config["untagged_resources"]["enabled"] == True:
+if config["untagged_resources"]["enabled"]:
     tags_to_look = config["untagged_resources"]["tags"]
-    ##############################################
-    ##       Untagged Resources                 ##
-    ##############################################
+    # untagged resources
     print("\nLooking for untagged resources")
     print("---")
 
     untagged_worksheet = workbook.add_worksheet("Untagged Resources")
     row = 0
     # add headings
-    untagged_worksheet.write(row, 0, "Resource", blue_heading)
-    untagged_worksheet.write(row, 1, "Name", blue_heading)
+    untagged_worksheet.write(row, 0, "Resource", main_heading)
+    untagged_worksheet.write(row, 1, "Name", main_heading)
     col = 2
     for key in tags_to_look:
-        untagged_worksheet.write(row, col, key, blue_heading)
+        untagged_worksheet.write(row, col, key, main_heading)
         col += 1
     row += 1
     # set length of columns
@@ -196,7 +223,7 @@ if config["untagged_resources"]["enabled"] == True:
             tag_list = instance['Tags']
             tags = get_tags_dict_from_list(tag_list)
             if tags.get('Name') is not None:
-                instance_identifier += (" (" + tags['Name']+ ")")
+                instance_identifier += (" (" + tags['Name'] + ")")
             row = add_untagged_in_worksheet(untagged_worksheet, row, "EC2 Instance", instance_identifier, tags_to_look, tags)
 
     # ------------------#
@@ -210,7 +237,7 @@ if config["untagged_resources"]["enabled"] == True:
         tag_response = client.list_tags_for_stream(StreamName=stream)
         tag_list = tag_response['Tags']
         has_more_tags = tag_response.get('HasMoreTags', False)
-        while has_more_tags == True:
+        while has_more_tags:
             tag_response = client.list_tags_for_stream(StreamName=stream, ExclusiveStartTagKey=tag_list[-1]['Key'])
             tag_list.extend(tag_response['Tags'])
             has_more_tags = tag_response.get('HasMoreTags', False)
@@ -228,7 +255,7 @@ if config["untagged_resources"]["enabled"] == True:
         tag_response = client.list_tags_for_delivery_stream(DeliveryStreamName=stream)
         tag_list = tag_response['Tags']
         has_more_tags = tag_response.get('HasMoreTags', False)
-        while has_more_tags == True:
+        while has_more_tags:
             tag_response = client.list_tags_for_delivery_stream(DeliveryStreamName=stream, ExclusiveStartTagKey=tag_list[-1]['Key'])
             tag_list.extend(tag_response['Tags'])
             has_more_tags = tag_response.get('HasMoreTags', False)
@@ -254,28 +281,26 @@ if config["untagged_resources"]["enabled"] == True:
         tags = get_tags_dict_from_list(tag_list)
         row = add_untagged_in_worksheet(untagged_worksheet, row, "S3 Bucket", bucket_name, tags_to_look, tags)
 
-if config["unreferenced_snapshots"]["enabled"] == True:
-    ##############################################
-    ##       Unreferenced Snapshots             ##
-    ##############################################
+if config["unreferenced_snapshots"]["enabled"]:
+    # Unreferenced Snapshots
     print("\nLooking for unreferenced snapshots")
     print("---")
 
     snapshots_worksheet = workbook.add_worksheet("Unreferenced Snapshots")
     row = 0
     # add headings
-    snapshots_worksheet.write(row, 0, "Snapshot ID", blue_heading)
-    snapshots_worksheet.write(row, 1, "Size", blue_heading)
-    snapshots_worksheet.write(row, 2, "Start Time", blue_heading)
-    snapshots_worksheet.write(row, 3, "Volume", blue_heading)
-    snapshots_worksheet.write(row, 4, "AMI", blue_heading)
-    snapshots_worksheet.write(row, 5, "Instance", blue_heading)
-    snapshots_worksheet.write(row, 6, "Volume ID", blue_heading)
-    snapshots_worksheet.write(row, 7, "Volume Name", blue_heading)
-    snapshots_worksheet.write(row, 8, "AMI ID", blue_heading)
-    snapshots_worksheet.write(row, 9, "AMI Name", blue_heading)
-    snapshots_worksheet.write(row, 10, "Instance ID", blue_heading)
-    snapshots_worksheet.write(row, 11, "Instance Name", blue_heading)
+    snapshots_worksheet.write(row, 0, "Snapshot ID", main_heading)
+    snapshots_worksheet.write(row, 1, "Size", main_heading)
+    snapshots_worksheet.write(row, 2, "Start Time", main_heading)
+    snapshots_worksheet.write(row, 3, "Volume", main_heading)
+    snapshots_worksheet.write(row, 4, "AMI", main_heading)
+    snapshots_worksheet.write(row, 5, "Instance", main_heading)
+    snapshots_worksheet.write(row, 6, "Volume ID", main_heading)
+    snapshots_worksheet.write(row, 7, "Volume Name", main_heading)
+    snapshots_worksheet.write(row, 8, "AMI ID", main_heading)
+    snapshots_worksheet.write(row, 9, "AMI Name", main_heading)
+    snapshots_worksheet.write(row, 10, "Instance ID", main_heading)
+    snapshots_worksheet.write(row, 11, "Instance Name", main_heading)
     # set length of columns
     snapshots_worksheet.set_column(0, 11, 30)
 
@@ -298,22 +323,20 @@ if config["unreferenced_snapshots"]["enabled"] == True:
             snapshots_worksheet.write(row, 11, snapshot['instance_name'], generic_cell)
             row += 1
 
-if config["unattached_volumes"]["enabled"] == True:
-    ##############################################
-    ##       Unattached Volumes                 ##
-    ##############################################
+if config["unattached_volumes"]["enabled"]:
+    # Unattached Volumes
     print("\nLooking for unattached volumes")
     print("---")
 
     volumes_worksheet = workbook.add_worksheet("Unattached Volumes")
     row = 0
     # add headings
-    volumes_worksheet.write(row, 0, "Volume ID", blue_heading)
-    volumes_worksheet.write(row, 1, "Create Time", blue_heading)
-    volumes_worksheet.write(row, 2, "Status", blue_heading)
-    volumes_worksheet.write(row, 3, "Size", blue_heading)
-    volumes_worksheet.write(row, 4, "Snapshot ID", blue_heading)
-    volumes_worksheet.write(row, 5, "Tags", blue_heading)
+    volumes_worksheet.write(row, 0, "Volume ID", main_heading)
+    volumes_worksheet.write(row, 1, "Create Time", main_heading)
+    volumes_worksheet.write(row, 2, "Status", main_heading)
+    volumes_worksheet.write(row, 3, "Size", main_heading)
+    volumes_worksheet.write(row, 4, "Snapshot ID", main_heading)
+    volumes_worksheet.write(row, 5, "Tags", main_heading)
     # set length of columns
     volumes_worksheet.set_column(0, 4, 30)
     volumes_worksheet.set_column(5, 5, 60)
@@ -330,10 +353,8 @@ if config["unattached_volumes"]["enabled"] == True:
         volumes_worksheet.write(row, 5, volume['tags'], generic_cell)
         row += 1
 
-if config["expensive_lambda_functions"]["enabled"] == True:
-    ##############################################
-    ##       Top most expensive lambdas         ##
-    ##############################################
+if config["expensive_lambda_functions"]["enabled"]:
+    # Top most expensive lambdas
     print("\nLooking for expensive lambda functions...")
     print("---")
 
@@ -347,18 +368,18 @@ if config["expensive_lambda_functions"]["enabled"] == True:
     lambda_worksheet = workbook.add_worksheet("{}% Cost Lambdas".format(cost_percentage))
     row = 0
     # add headings
-    lambda_worksheet.write(row, 0, "Function Name", blue_heading)
-    lambda_worksheet.write(row, 1, "Cost (in USD) for past {} days".format(past_days), blue_heading)
+    lambda_worksheet.write(row, 0, "Function Name", main_heading)
+    lambda_worksheet.write(row, 1, "Cost (in USD) for past {} days".format(past_days), main_heading)
     # set length of columns
     lambda_worksheet.set_column(0, 1, 60)
     row += 1
 
     client = boto3.client("ce")
-    response = client.get_cost_and_usage(TimePeriod={'Start': start_date, 'End': end_date}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[{'Type': 'TAG', 'Key': name_tag_key}], Filter={'Dimensions': { 'Key': 'SERVICE', 'Values': ['AWS Lambda']}})
+    response = client.get_cost_and_usage(TimePeriod={'Start': start_date, 'End': end_date}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[{'Type': 'TAG', 'Key': name_tag_key}], Filter={'Dimensions': {'Key': 'SERVICE', 'Values': ['AWS Lambda']}})
     raw_data = response.get('ResultsByTime', [])
     next_token = response.get('NextPageToken')
     while next_token is not None:
-        response = client.get_cost_and_usage(TimePeriod={'Start': start_date, 'End': end_date}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[{'Type': 'TAG', 'Key': name_tag_key}], Filter={'Dimensions': { 'Key': 'SERVICE', 'Values': ['AWS Lambda']}}, NextPageToken=next_token)
+        response = client.get_cost_and_usage(TimePeriod={'Start': start_date, 'End': end_date}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[{'Type': 'TAG', 'Key': name_tag_key}], Filter={'Dimensions': {'Key': 'SERVICE', 'Values': ['AWS Lambda']}}, NextPageToken=next_token)
         raw_data.extend(response['ResultsByTime'])
         next_token = response.get('NextPageToken')
 
@@ -384,14 +405,12 @@ if config["expensive_lambda_functions"]["enabled"] == True:
         if current_amount > target_amount:
             break
     if total_cost > 0:
-        lambda_worksheet.write(row, 0, "ALL FUNCTIONS", gray_heading)
-        lambda_worksheet.write(row, 1, total_cost, gray_heading)
+        lambda_worksheet.write(row, 0, "ALL FUNCTIONS", sub_heading)
+        lambda_worksheet.write(row, 1, total_cost, sub_heading)
         row += 1
 
-if config["expensive_kinesis_streams"]["enabled"] == True:
-    ##############################################
-    ##    Top most expensive kinesis streams    ##
-    ##############################################
+if config["expensive_kinesis_streams"]["enabled"]:
+    # Top most expensive kinesis streams
     print("\nLooking for expensive kinesis streams...")
     print("---")
 
@@ -405,19 +424,19 @@ if config["expensive_kinesis_streams"]["enabled"] == True:
     kinesis_worksheet = workbook.add_worksheet("{}% Cost Streams".format(cost_percentage))
     row = 0
     # add headings
-    kinesis_worksheet.write(row, 0, "Kinesis Stream Name", blue_heading)
-    kinesis_worksheet.write(row, 1, "Number of Shards", blue_heading)
-    kinesis_worksheet.write(row, 2, "Cost (in USD) for past {} days".format(past_days), blue_heading)
+    kinesis_worksheet.write(row, 0, "Kinesis Stream Name", main_heading)
+    kinesis_worksheet.write(row, 1, "Number of Shards", main_heading)
+    kinesis_worksheet.write(row, 2, "Cost (in USD) for past {} days".format(past_days), main_heading)
     # set length of columns
     kinesis_worksheet.set_column(0, 2, 60)
     row += 1
 
     client = boto3.client("ce")
-    response = client.get_cost_and_usage(TimePeriod={'Start': start_date, 'End': end_date}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[{'Type': 'TAG', 'Key': name_tag_key}], Filter={'Dimensions': { 'Key': 'SERVICE', 'Values': ['Amazon Kinesis']}})
+    response = client.get_cost_and_usage(TimePeriod={'Start': start_date, 'End': end_date}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[{'Type': 'TAG', 'Key': name_tag_key}], Filter={'Dimensions': {'Key': 'SERVICE', 'Values': ['Amazon Kinesis']}})
     raw_data = response.get('ResultsByTime', [])
     next_token = response.get('NextPageToken')
     while next_token is not None:
-        response = client.get_cost_and_usage(TimePeriod={'Start': start_date, 'End': end_date}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[{'Type': 'TAG', 'Key': name_tag_key}], Filter={'Dimensions': { 'Key': 'SERVICE', 'Values': ['Amazon Kinesis']}}, NextPageToken=next_token)
+        response = client.get_cost_and_usage(TimePeriod={'Start': start_date, 'End': end_date}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[{'Type': 'TAG', 'Key': name_tag_key}], Filter={'Dimensions': {'Key': 'SERVICE', 'Values': ['Amazon Kinesis']}}, NextPageToken=next_token)
         raw_data.extend(response['ResultsByTime'])
         next_token = response.get('NextPageToken')
 
@@ -445,7 +464,7 @@ if config["expensive_kinesis_streams"]["enabled"] == True:
             no_of_shards = len(kinesis_response.get('StreamDescription', dict()).get('Shards', []))
             has_more_shards = kinesis_response.get('StreamDescription', dict()).get('HasMoreShards', False)
             if has_more_shards:
-                no_of_shards = str(no_of_shards) + "+" # number of shards more than 100!
+                no_of_shards = str(no_of_shards) + "+"  # number of shards more than 100!
         except Exception as e:
             print(e)
             continue
@@ -459,22 +478,20 @@ if config["expensive_kinesis_streams"]["enabled"] == True:
         if current_amount > target_amount:
             break
     if total_cost > 0:
-        kinesis_worksheet.write(row, 0, "ALL STREAMS", gray_heading)
-        kinesis_worksheet.write(row, 1, "", gray_heading)
-        kinesis_worksheet.write(row, 2, total_cost, gray_heading)
+        kinesis_worksheet.write(row, 0, "ALL STREAMS", sub_heading)
+        kinesis_worksheet.write(row, 1, "", sub_heading)
+        kinesis_worksheet.write(row, 2, total_cost, sub_heading)
         row += 1
 
-if config["on_demand_ddb"]["enabled"] == True:
-    ##############################################
-    ##    On Demand DynamoDB Tables             ##
-    ##############################################
+if config["on_demand_ddb"]["enabled"]:
+    # On Demand DynamoDB Tables
     print("\nLooking for on demand dynamodb tables...")
     print("---")
 
     ddb_worksheet = workbook.add_worksheet("On-Demand DynamoDB Tables")
     row = 0
     # add headings
-    ddb_worksheet.write(row, 0, "DynamoDB Table Name", blue_heading)
+    ddb_worksheet.write(row, 0, "DynamoDB Table Name", main_heading)
     row += 1
     ddb_worksheet.set_column(0, 0, 40)
 
@@ -490,10 +507,8 @@ if config["on_demand_ddb"]["enabled"] == True:
 # reusable values
 log_group_gb = defaultdict(float)
 past_days = 14
-if config["storage_cloudwatch_log_groups"]["enabled"] == True:
-    ########################################################
-    ##    Top N CloudWatch Log Groups by incoming bytes   ##
-    ########################################################
+if config["storage_cloudwatch_log_groups"]["enabled"]:
+    # Top N CloudWatch Log Groups by incoming bytes
     print("\nLooking for incoming bytes cloudwatch log groups...")
     print("---")
 
@@ -503,8 +518,8 @@ if config["storage_cloudwatch_log_groups"]["enabled"] == True:
     cloudwatch_worksheet = workbook.add_worksheet("Top {} Log Groups".format(top_n))
     row = 0
     # add headings
-    cloudwatch_worksheet.write(row, 0, "CloudWatch Log Group", blue_heading)
-    cloudwatch_worksheet.write(row, 1, "Incoming GBs in last {} days".format(past_days), blue_heading)
+    cloudwatch_worksheet.write(row, 0, "CloudWatch Log Group", main_heading)
+    cloudwatch_worksheet.write(row, 1, "Incoming GBs in last {} days".format(past_days), main_heading)
     # set length of columns
     cloudwatch_worksheet.set_column(0, 1, 60)
     row += 1
@@ -552,25 +567,22 @@ if config["storage_cloudwatch_log_groups"]["enabled"] == True:
         for result in batch_results:
             if result['StatusCode'] == "Complete" and result['Label'] != "IncomingBytes":
                 try:
-                    incoming_gb = result['Values'][0] / (1024 * 1024 * 1024) # convert bytes to GB
+                    incoming_gb = result['Values'][0] / (1024 * 1024 * 1024)  # convert bytes to GB
                     results.append((result['Label'], incoming_gb))
                     log_group_gb[result['Label']] = incoming_gb
                 except IndexError:
                     continue
 
-    results.sort(key = lambda x: x[1], reverse=True)
+    results.sort(key=lambda x: x[1], reverse=True)
     results = results[:top_n]
-    
+
     for name, incoming_gb in results:
         cloudwatch_worksheet.write(row, 0, name, generic_cell)
         cloudwatch_worksheet.write(row, 1, incoming_gb, generic_cell)
         row += 1
 
-if config['api_gateway_cloudwatch']["enabled"] == True:
-    #############################################################
-    ## Top N API Gateway REST API stages CloudWatch Log Groups ##
-    #############################################################
-
+if config['api_gateway_cloudwatch']["enabled"]:
+    # Top N API Gateway REST API stages CloudWatch Log Groups
 
     if not config["storage_cloudwatch_log_groups"]["enabled"]:
         raise Exception("ERROR: Cannot add API Gateway sheet since storage_cloudwatch_log_groups was not enabled :(")
@@ -582,18 +594,18 @@ if config['api_gateway_cloudwatch']["enabled"] == True:
     api_gateway_worksheet = workbook.add_worksheet("Top {} API GW Logs".format(top_n))
     row = 0
     # add headings
-    api_gateway_worksheet.write(row, 0, "REST API", blue_heading)
-    api_gateway_worksheet.write(row, 1, "Stage", blue_heading)
-    api_gateway_worksheet.write(row, 2, "Execution Log Group", blue_heading)
-    api_gateway_worksheet.write(row, 3, "Incoming GBs in last {} days".format(past_days), blue_heading)
-    api_gateway_worksheet.write(row, 4, "Access Log Group", blue_heading)
-    api_gateway_worksheet.write(row, 5, "Incoming GBs in last {} days".format(past_days), blue_heading)
+    api_gateway_worksheet.write(row, 0, "REST API", main_heading)
+    api_gateway_worksheet.write(row, 1, "Stage", main_heading)
+    api_gateway_worksheet.write(row, 2, "Execution Log Group", main_heading)
+    api_gateway_worksheet.write(row, 3, "Incoming GBs in last {} days".format(past_days), main_heading)
+    api_gateway_worksheet.write(row, 4, "Access Log Group", main_heading)
+    api_gateway_worksheet.write(row, 5, "Incoming GBs in last {} days".format(past_days), main_heading)
     # set length of columns
     api_gateway_worksheet.set_column(0, 5, 30)
     row += 1
 
     client = boto3.client("apigateway")
-    
+
     # get all apis first
     print("Fetching all REST APIs....")
     apis = []
@@ -612,7 +624,7 @@ if config['api_gateway_cloudwatch']["enabled"] == True:
                 "api_name": item['name']
             })
         position = response.get('position')
-    
+
     # check stages for REST APIs
     results = []
     for api in apis:
@@ -627,29 +639,27 @@ if config['api_gateway_cloudwatch']["enabled"] == True:
             execution_usage = log_group_gb[log_group]
             if access_usage + execution_usage > 0:
                 results.append([api['api_name'], stage['stageName'], log_group, log_group_gb[log_group], access_log_group, log_group_gb[access_log_group]])
-    results.sort(key = lambda x: x[3]+x[5], reverse=True)
+    results.sort(key=lambda x: x[3]+x[5], reverse=True)
     results = results[:top_n]
     for result_row in results:
         for i in range(0, 6):
             api_gateway_worksheet.write(row, i, result_row[i], generic_cell)
         row += 1
-    
 
-if config["unused_elastic_ips"]["enabled"] == True:
-    ########################################################
-    ##           Unused Elastic IPs                       ##
-    ########################################################
+
+if config["unused_elastic_ips"]["enabled"]:
+    # Unused Elastic IPs
     print("\nLooking for unused elastic IPs...")
     print("---")
 
     elastic_ips_worksheet = workbook.add_worksheet("Unused Elastic IPs")
     row = 0
     # add headings
-    elastic_ips_worksheet.write(row, 0, "Elastic Public IP", blue_heading)
-    elastic_ips_worksheet.write(row, 1, "Assigned to Instance", blue_heading)
-    elastic_ips_worksheet.write(row, 2, "Instance State", blue_heading)
-    elastic_ips_worksheet.write(row, 3, "Instance Name", blue_heading)
-    elastic_ips_worksheet.write(row, 4, "Instance ID", blue_heading)
+    elastic_ips_worksheet.write(row, 0, "Elastic Public IP", main_heading)
+    elastic_ips_worksheet.write(row, 1, "Assigned to Instance", main_heading)
+    elastic_ips_worksheet.write(row, 2, "Instance State", main_heading)
+    elastic_ips_worksheet.write(row, 3, "Instance Name", main_heading)
+    elastic_ips_worksheet.write(row, 4, "Instance ID", main_heading)
     # set length of columns
     elastic_ips_worksheet.set_column(0, 4, 30)
     row += 1
