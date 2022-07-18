@@ -26,6 +26,12 @@
         "cost_percentage": 80,
         "past_days": 7
     },
+    "expensive_ddb": {
+        "enabled": true,
+        "name_tag_key": "Name",
+        "cost_percentage": 80,
+        "past_days": 7
+    },
     "on_demand_ddb": {
         "enabled": true
     },
