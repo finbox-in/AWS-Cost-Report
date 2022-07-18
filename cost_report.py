@@ -483,6 +483,83 @@ if config["expensive_kinesis_streams"]["enabled"]:
         kinesis_worksheet.write(row, 2, total_cost, sub_heading)
         row += 1
 
+if config["expensive_ddb"]["enabled"]:
+    # Top most expensive dynamodb tables
+    print("\nLooking for expensive dynamodb tables...")
+    print("---")
+
+    cost_percentage = config["expensive_ddb"]["cost_percentage"]
+    name_tag_key = config["expensive_ddb"]["name_tag_key"]
+    past_days = config["expensive_ddb"]["past_days"]
+
+    start_date = (datetime.today() - timedelta(days=past_days)).strftime("%Y-%m-%d")
+    end_date = datetime.today().strftime("%Y-%m-%d")
+
+    worksheet = workbook.add_worksheet("{}% Cost DynamoDB Tables".format(cost_percentage))
+    row = 0
+    # add headings
+    worksheet.write(row, 0, "DynamoDB Table Name", main_heading)
+    worksheet.write(row, 1, "Billing Mode", main_heading)
+    worksheet.write(row, 2, "Number of Items", main_heading)
+    worksheet.write(row, 3, "Storage in GB", main_heading)
+    worksheet.write(row, 4, "Cost (in USD) for past {} days".format(past_days), main_heading)
+    # set length of columns
+    worksheet.set_column(0, 5, 60)
+    row += 1
+
+    client = boto3.client("ce")
+    response = client.get_cost_and_usage(TimePeriod={'Start': start_date, 'End': end_date}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[{'Type': 'TAG', 'Key': name_tag_key}], Filter={'Dimensions': {'Key': 'SERVICE', 'Values': ['Amazon DynamoDB']}})
+    raw_data = response.get('ResultsByTime', [])
+    next_token = response.get('NextPageToken')
+    while next_token is not None:
+        response = client.get_cost_and_usage(TimePeriod={'Start': start_date, 'End': end_date}, Granularity='DAILY', Metrics=['UnblendedCost'], GroupBy=[{'Type': 'TAG', 'Key': name_tag_key}], Filter={'Dimensions': {'Key': 'SERVICE', 'Values': ['Amazon DynamoDB']}}, NextPageToken=next_token)
+        raw_data.extend(response['ResultsByTime'])
+        next_token = response.get('NextPageToken')
+    clean_data = defaultdict(float)
+    total_cost = 0
+    for interval in raw_data:
+        for group_row in interval['Groups']:
+            name = group_row['Keys'][0][len(name_tag_key)+1:]
+            if name:
+                interval_cost = float(group_row['Metrics']['UnblendedCost']['Amount'])
+                clean_data[name] += interval_cost
+                total_cost += interval_cost
+
+    sorted_tables = sorted(clean_data.items(), key=lambda x: x[1], reverse=True)
+
+    target_amount = (cost_percentage / 100.0) * total_cost
+    current_amount = 0
+    for name, cost in sorted_tables:
+        # fetch details for tables
+        print("Fetching details for ", name)
+        try:
+            dynamodb = boto3.client("dynamodb")
+            ddb_table = dynamodb.describe_table(TableName=name)['Table']
+            number_of_items = ddb_table.get('ItemCount', 0)
+            storage_in_gb = ddb_table.get('TableSizeBytes', 0) / 1024.0 / 1024.0 / 1024.0
+            billing_mode = ddb_table.get('BillingModeSummary', dict()).get('BillingMode', "Not Available")
+        except Exception as e:
+            print(e)
+            continue
+
+        worksheet.write(row, 0, name, generic_cell)
+        worksheet.write(row, 1, billing_mode, generic_cell)
+        worksheet.write(row, 2, number_of_items, generic_cell)
+        worksheet.write(row, 3, storage_in_gb, generic_cell)
+        worksheet.write(row, 4, cost, generic_cell)
+
+        row += 1
+        current_amount += cost
+        if current_amount > target_amount:
+            break
+    if total_cost > 0:
+        worksheet.write(row, 0, "ALL TABLES", sub_heading)
+        worksheet.write(row, 1, "", sub_heading)
+        worksheet.write(row, 2, "", sub_heading)
+        worksheet.write(row, 3, "", sub_heading)
+        worksheet.write(row, 4, total_cost, sub_heading)
+        row += 1
+
 if config["on_demand_ddb"]["enabled"]:
     # On Demand DynamoDB Tables
     print("\nLooking for on demand dynamodb tables...")
